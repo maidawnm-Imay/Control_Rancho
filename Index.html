@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Mi Casa</title>
+    
+    <!-- Librería Paho MQTT oficial vía CDN (Funcionará perfecto en GitHub) -->
+    <script src="https://cloudflare.com" type="text/javascript"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 300px;
+        }
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .status-luz {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            color: #777;
+            padding: 8px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .btn {
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 8px;
+            width: 80%;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+        .btn-on { background-color: #4CAF50; }
+        .btn-on:hover { background-color: #45a049; }
+        .btn-off { background-color: #f44336; }
+        .btn-off:hover { background-color: #da190b; }
+        #estado {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Luz del Fondo</h1>
+        
+        <!-- Indicador de estado de la luz física -->
+        <div id="statusLuz" class="status-luz">ESTADO: DESCONOCIDO</div>
+
+        <button class="btn btn-on" onclick="enviarComando('1')">ENCENDER</button>
+        <button class="btn btn-off" onclick="enviarComando('0')">APAGAR</button>
+        <p id="estado">Conectando al servidor MQTT...</p>
+    </div>
+
+    <script>
+        // === CONFIGURACIÓN MQTT PARA GITHUB (HTTPS) ===
+        const MQTT_HOST = "broker.emqx.io"; 
+        const MQTT_PUERTO = 8084; // Puerto seguro obligatorio para GitHub Pages
+        const CLIENT_ID = "web_cliente_" + Math.random().toString(16).substr(2, 8);
+        
+        const TOPICO_COMANDO = "mihogar/seguro/rele1";
+        const TOPICO_ESTADO = "mihogar/seguro/luz/estado";
+
+        let cliente = new Paho.MQTT.Client(MQTT_HOST, Number(MQTT_PUERTO), CLIENT_ID);
+
+        cliente.onConnectionLost = alPerderConexion;
+        cliente.onMessageArrived = alRecibirMensaje; 
+
+        conectarMQTT();
+
+        function conectarMQTT() {
+            cliente.connect({
+                onSuccess: alConectar,
+                useSSL: true,         // Activado obligatorio para GitHub Pages
+                path: "/mqtt"         
+            });
+        }
+
+        function alConectar() {
+            document.getElementById("estado").innerText = "Conectado al MQTT con éxito";
+            document.getElementById("estado").style.color = "#4CAF50";
+            cliente.subscribe(TOPICO_ESTADO);
+        }
+
+        function alPerderConexion(objetoError) {
+            document.getElementById("estado").innerText = "Conexión perdida. Reintentando...";
+            document.getElementById("estado").style.color = "#f44336";
+            document.getElementById("statusLuz").innerText = "ESTADO: DESCONOCIDO";
+            document.getElementById("statusLuz").style.color = "#777";
+            setTimeout(conectarMQTT, 3000); 
+        }
+
+        function alRecibirMensaje(mensaje) {
+            if (mensaje.destinationName === TOPICO_ESTADO) {
+                let txtEstado = document.getElementById("statusLuz");
+                if (mensaje.payloadString === "1") {
+                    txtEstado.innerText = "ESTADO: ENCENDIDO";
+                    txtEstado.style.color = "#4CAF50";
+                } else if (mensaje.payloadString === "0") {
+                    txtEstado.innerText = "ESTADO: APAGADO";
+                    txtEstado.style.color = "#f44336";
+                }
+            }
+        }
+
+        function enviarComando(payload) {
+            if (cliente && cliente.isConnected()) {
+                let mensaje = new Paho.MQTT.Message(payload);
+                mensaje.destinationName = TOPICO_COMANDO;
+                cliente.send(mensaje);
+                console.log("Enviado comando: " + payload);
+            } else {
+                alert("No estás conectado al servidor MQTT todavía.");
+            }
+        }
+    </script>
+</body>
+</html>
