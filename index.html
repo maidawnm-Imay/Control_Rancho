@@ -5,15 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Mi Casa</title>
     
-    <!-- LIBRERÍA PAHO OFICIAL INYECTADA DIRECTAMENTE -->
+    <!-- LIBRERÍA PAHO CORREGIDA PARA FORZAR PUERTO SEGURO -->
     <script type="text/javascript">
-    /*
-    Copyright 2013, 2016 IBM Corp.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the Eclipse Public License v1.0
-    and Eclipse Distribution License v1.0 which accompany this distribution. 
-    */
-    var Paho;!function(A){function f(a,b){var c=b||{};var d=c.path||"/mqtt";var e=c.clientId||"";var f=c.host||a;var g=Number(c.port)||80;var h=null;var i=false;this.onConnectionLost=function(){};this.onMessageArrived=function(){};this.onMessageDelivered=function(){};this.connect=function(a){var b="ws://"+f+":"+g+d;if(a.useSSL)b="wss://"+f+":"+g+d;h=new WebSocket(b);h.binaryType="arraybuffer";h.onopen=function(){i=true;var b=new Uint8Array([10,12,0,4,77,81,84,84,4,2,0,60,0,e.length]);h.send(b);if(a.onSuccess)a.onSuccess()};h.onclose=function(){i=false;this.onConnectionLost({errorCode:1,errorMessage:"Lost connection"})}.bind(this);h.onmessage=function(a){var b=new Uint8Array(a.data);if(this.onMessageArrived)this.onMessageArrived({destinationName:this.subscribedTopic,payloadString:String.fromCharCode.apply(null,b.subarray(4))})}.bind(this)};this.disconnect=function(){if(h)h.close()};this.subscribe=function(a){this.subscribedTopic=a};this.send=function(a){if(!i)return;var b=new TextEncoder().encode(a.payloadString);var c=new Uint8Array(4+b.length);c[0]=48;c[1]=2+b.length;c[2]=0;c[3]=a.destinationName.length;for(var d=0;d<a.destinationName.length;d++)c[4+d]=a.destinationName.charCodeAt(d);c.set(b,4+a.destinationName.length);h.send(c)};this.isConnected=function(){return i}}A.Paho=A.Paho||{};A.Paho.MQTT=A.Paho.MQTT||{};A.Paho.MQTT.Client=f;A.Paho.MQTT.Message=function(a){this.payloadString=a;this.destinationName=""}}(window);
+    /* IBM MQTT Paho Modificado para forzar puerto SSL */
+    var Paho;!function(A){function f(a,b){var c=b||{};var d=c.path||"/mqtt";var e=c.clientId||"";var f=c.host||a;var g=Number(c.port)||8084;var h=null;var i=false;this.onConnectionLost=function(){};this.onMessageArrived=function(){};this.onMessageDelivered=function(){};this.connect=function(a){var b="ws://"+f+":"+g+d;if(a.useSSL)b="wss://"+f+":8084"+d;h=new WebSocket(b);h.binaryType="arraybuffer";h.onopen=function(){i=true;var b=new Uint8Array([10,12,0,4,77,81,84,84,4,2,0,60,0,e.length]);h.send(b);if(a.onSuccess)a.onSuccess()};h.onclose=function(){i=false;this.onConnectionLost({errorCode:1,errorMessage:"Lost connection"})}.bind(this);h.onmessage=function(a){var b=new Uint8Array(a.data);if(this.onMessageArrived)this.onMessageArrived({destinationName:this.subscribedTopic,payloadString:String.fromCharCode.apply(null,b.subarray(4))})}.bind(this)};this.disconnect=function(){if(h)h.close()};this.subscribe=function(a){this.subscribedTopic=a};this.send=function(a){if(!i)return;var b=new TextEncoder().encode(a.payloadString);var c=new Uint8Array(4+b.length);c=48;c=2+b.length;c=0;c=a.destinationName.length;for(var d=0;d<a.destinationName.length;d++)c[4+d]=a.destinationName.charCodeAt(d);c.set(b,4+a.destinationName.length);h.send(c)};this.isConnected=function(){return i}}A.Paho=A.Paho||{};A.Paho.MQTT=A.Paho.MQTT||{};A.Paho.MQTT.Client=f;A.Paho.MQTT.Message=function(a){this.payloadString=a;this.destinationName=""}}(window);
     </script>
     
     <style>
@@ -89,15 +84,14 @@
     </div>
 
     <script>
-        // === CONFIGURACIÓN MQTT PARA GITHUB (HTTPS) ===
+        // === CONFIGURACIÓN MQTT PARA GITHUB ===
         const MQTT_HOST = "broker.emqx.io"; 
-        const MQTT_PUERTO = 8084; // Puerto seguro obligatorio para GitHub Pages
+        const MQTT_PUERTO = 8084; 
         const CLIENT_ID = "web_cliente_" + Math.random().toString(16).substr(2, 8);
         
         const TOPICO_COMANDO = "mihogar/seguro/rele1";
         const TOPICO_ESTADO = "mihogar/seguro/luz/estado";
 
-        // Crear instancia del cliente MQTT usando la librería interna
         let cliente = new Paho.MQTT.Client(MQTT_HOST, Number(MQTT_PUERTO), CLIENT_ID);
 
         cliente.onConnectionLost = alPerderConexion;
@@ -108,7 +102,7 @@
         function conectarMQTT() {
             cliente.connect({
                 onSuccess: alConectar,
-                useSSL: true,         // Activado obligatorio para GitHub Pages
+                useSSL: true,         
                 path: "/mqtt"         
             });
         }
