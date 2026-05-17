@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Mi Casa</title>
     
-    <!-- Librería Paho Oficial desde CDN (Limpia y sin códigos inyectados raros) -->
-    <script src="https://cloudflare.com" type="text/javascript"></script>
+    <!-- Librería MQTT oficial cargada como módulo (Evita el error 'not defined') -->
+    <script src="https://unpkg.com" type="text/javascript"></script>
     
     <style>
         body {
@@ -80,65 +80,58 @@
     </div>
 
     <script>
-        // === CONFIGURACIÓN SEGURO CONTRA BLOQUEOS (HIVEMQ) ===
+        // === CONFIGURACIÓN BROKER PÚBLICO SEGURO ===
         const MQTT_HOST = "://hivemq.com"; 
-        const MQTT_PUERTO = 443; // Puerto HTTPS estándar libre de bloqueos
+        const MQTT_PUERTO = 443; // Puerto SSL universal (no lo bloquea ningún router)
         const CLIENT_ID = "web_cliente_" + Math.random().toString(16).substr(2, 8);
         
         const TOPICO_COMANDO = "mihogar/seguro/rele1";
         const TOPICO_ESTADO = "mihogar/seguro/luz/estado";
 
-        // Creamos el cliente de forma oficial pasándole los parámetros limpios
-        let cliente = new Paho.MQTT.Client(MQTT_HOST, Number(MQTT_PUERTO), "/mqtt", CLIENT_ID);
+        let cliente;
 
-        cliente.onConnectionLost = alPerderConexion;
-        cliente.onMessageArrived = alRecibirMensaje; 
+        try {
+            // Conexión nativa por WebSockets Seguros (WSS)
+            cliente = mqtt.connect(`wss://${MQTT_HOST}:${MQTT_PUERTO}/mqtt`, {
+                clientId: CLIENT_ID,
+                clean: true,
+                connectTimeout: 4000
+            });
 
-        conectarMQTT();
+            cliente.on('connect', function () {
+                document.getElementById("estado").innerText = "Conectado al MQTT con éxito";
+                document.getElementById("estado").style.color = "#4CAF50";
+                cliente.subscribe(TOPICO_ESTADO);
+            });
 
-        function conectarMQTT() {
-            cliente.connect({
-                onSuccess: alConectar,
-                useSSL: true,         // Obligatorio para GitHub Pages
-                onFailure: function(e) {
-                    console.error("Fallo la conexión:", e);
-                    document.getElementById("estado").innerText = "Fallo al conectar a HiveMQ.";
+            cliente.on('close', function () {
+                document.getElementById("estado").innerText = "Conexión perdida. Reintentando...";
+                document.getElementById("estado").style.color = "#f44336";
+                document.getElementById("statusLuz").innerText = "ESTADO: DESCONOCIDO";
+                document.getElementById("statusLuz").style.color = "#777";
+            });
+
+            cliente.on('message', function (topic, message) {
+                let payload = message.toString();
+                if (topic === TOPICO_ESTADO) {
+                    let txtEstado = document.getElementById("statusLuz");
+                    if (payload === "1") {
+                        txtEstado.innerText = "ESTADO: ENCENDIDO";
+                        txtEstado.style.color = "#4CAF50";
+                    } else if (payload === "0") {
+                        txtEstado.innerText = "ESTADO: APAGADO";
+                        txtEstado.style.color = "#f44336";
+                    }
                 }
             });
-        }
 
-        function alConectar() {
-            document.getElementById("estado").innerText = "Conectado al MQTT con éxito";
-            document.getElementById("estado").style.color = "#4CAF50";
-            cliente.subscribe(TOPICO_ESTADO);
-        }
-
-        function alPerderConexion(objetoError) {
-            document.getElementById("estado").innerText = "Conexión perdida. Reintentando...";
-            document.getElementById("estado").style.color = "#f44336";
-            document.getElementById("statusLuz").innerText = "ESTADO: DESCONOCIDO";
-            document.getElementById("statusLuz").style.color = "#777";
-            setTimeout(conectarMQTT, 3000); 
-        }
-
-        function alRecibirMensaje(mensaje) {
-            if (mensaje.destinationName === TOPICO_ESTADO) {
-                let txtEstado = document.getElementById("statusLuz");
-                if (mensaje.payloadString === "1") {
-                    txtEstado.innerText = "ESTADO: ENCENDIDO";
-                    txtEstado.style.color = "#4CAF50";
-                } else if (mensaje.payloadString === "0") {
-                    txtEstado.innerText = "ESTADO: APAGADO";
-                    txtEstado.style.color = "#f44336";
-                }
-            }
+        } catch (e) {
+            console.error("Error in MQTT connection:", e);
         }
 
         function enviarComando(payload) {
-            if (cliente && cliente.isConnected()) {
-                let mensaje = new Paho.MQTT.Message(payload);
-                mensaje.destinationName = TOPICO_COMANDO;
-                cliente.send(mensaje);
+            if (cliente && cliente.connected) {
+                cliente.publish(TOPICO_COMANDO, payload);
                 console.log("Enviado comando: " + payload);
             } else {
                 alert("No estás conectado al servidor MQTT todavía.");
@@ -147,4 +140,3 @@
     </script>
 </body>
 </html>
-
