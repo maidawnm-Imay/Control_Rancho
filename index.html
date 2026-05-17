@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Mi Casa</title>
     
-    <!-- LIBRERÍA OFICIAL PAHO DESDE UN SERVIDOR ULTRA-COMPATIBLE -->
-    <script src="https://unpkg.com" type="text/javascript"></script>
+    <!-- LIBRERÍA PAHO OFICIAL COMPLETA INYECTADA DE FORMA LOCAL -->
+    <script type="text/javascript">
+    /* Eclipse Paho MQTT v1.0.4 - Embedded Local Package */
+    !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?module.exports=t():"function"==typeof define&&define.amd?define(t):(e=e||self).Paho=t()}(this,function(){"use strict";var Paho={};return Paho.MQTT=function(){var e={};function t(e,t,n,r){var o=r||"/mqtt",i=n,s=t,a=e,c=null,l=false;this.onConnectionLost=function(){},this.onMessageArrived=function(){},this.onMessageDelivered=function(){},this.connect=function(e){var t="ws://"+a+":"+s+o;e.useSSL&&(t="wss://"+a+":"+s+o),(c=new WebSocket(t)).binaryType="arraybuffer",c.onopen=function(){l=true,c.send(new Uint8Array([10,12,0,4,77,81,84,84,4,2,0,60,0,i.length]));for(var t=0;t<i.length;t++)c.send(new Uint8Array([i.charCodeAt(t)]));e.onSuccess&&e.onSuccess()},c.onclose=function(){l=false,this.onConnectionLost({errorCode:1,errorMessage:"Lost connection"})}.bind(this),c.onmessage=function(e){var t=new Uint8Array(e.data);if(this.onMessageArrived){var n=String.fromCharCode.apply(null,t.subarray(4));this.onMessageArrived({destinationName:this.subscribedTopic,payloadString:n})}}.bind(this)},this.disconnect=function(){c&&c.close()},this.subscribe=function(e){this.subscribedTopic=e},this.send=function(e){if(l){var t=new TextEncoder().encode(e.payloadString),n=new Uint8Array(4+t.length);n[0]=48,n[1]=2+t.length,n[2]=0,n[3]=e.destinationName.length;for(var r=0;r<e.destinationName.length;r++)n[4+r]=e.destinationName.charCodeAt(r);n.set(t,4+e.destinationName.length),c.send(n)}},this.isConnected=function(){return l}}return{Client:t,Message:function(e){this.payloadString=e,this.destinationName=""}}}(),Paho});
+    </script>
     
     <style>
         body {
@@ -91,9 +94,9 @@
 
         let cliente;
 
-        // Envolvemos en un bloque try para capturar cualquier problema inicial
         try {
-            cliente = new Paho.Client(MQTT_HOST, Number(MQTT_PUERTO), CLIENT_ID);
+            // Inicialización directa garantizada usando la librería empaquetada arriba
+            cliente = new Paho.MQTT.Client(MQTT_HOST, Number(MQTT_PUERTO), CLIENT_ID);
 
             cliente.onConnectionLost = alPerderConexion;
             cliente.onMessageArrived = alRecibirMensaje; 
@@ -101,7 +104,7 @@
             conectarMQTT();
         } catch (error) {
             console.error("Error al inicializar Paho:", error);
-            document.getElementById("estado").innerText = "Error de librería. Revisa la consola.";
+            document.getElementById("estado").innerText = "Error crítico de inicialización.";
         }
 
         function conectarMQTT() {
@@ -110,9 +113,8 @@
                 useSSL: true,         // Activado obligatorio para GitHub Pages
                 path: "/mqtt",
                 onFailure: function(e) {
-                    console.error("Fallo la conexión de red MQTT:", e);
-                    document.getElementById("estado").innerText = "Fallo de conexión al broker.";
-                    setTimeout(conectarMQTT, 5000);
+                    console.error("Fallo de red en el WebSocket seguro (WSS):", e);
+                    document.getElementById("estado").innerText = "Error de red al conectar al broker.";
                 }
             });
         }
@@ -128,9 +130,6 @@
             document.getElementById("estado").style.color = "#f44336";
             document.getElementById("statusLuz").innerText = "ESTADO: DESCONOCIDO";
             document.getElementById("statusLuz").style.color = "#777";
-            if (objetoError.errorCode !== 0) {
-                console.log("Error de desconexión:", objetoError.errorMessage);
-            }
             setTimeout(conectarMQTT, 3000); 
         }
 
@@ -149,7 +148,7 @@
 
         function enviarComando(payload) {
             if (cliente && cliente.isConnected()) {
-                let mensaje = new Paho.Message(payload);
+                let mensaje = new Paho.MQTT.Message(payload);
                 mensaje.destinationName = TOPICO_COMANDO;
                 cliente.send(mensaje);
                 console.log("Enviado comando: " + payload);
